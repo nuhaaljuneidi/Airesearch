@@ -99,12 +99,21 @@
     papers.forEach((p, i) => {
       const div = document.createElement("div");
       div.className = "card";
-      div.innerHTML = `
-        <b>${i + 1}) ${p.title || ""}</b><br>
-        <span class="muted">${p.authors || ""}</span><br>
-        <span class="muted">${p.year || ""} — ${p.venue || ""}</span><br>
-        <a href="${p.doiOrUrl || "#"}" target="_blank" rel="noopener">Open</a>
-      `;
+     div.innerHTML = `
+  <b>${i + 1}) ${p.title || ""}</b><br>
+  <span class="muted">${p.authors || ""}</span><br>
+  <span class="muted">${p.year || ""} — ${p.venue || ""}</span><br><br>
+
+  <b>Methodology:</b> ${p.methodology || ""}<br>
+  <b>HVAC application:</b> ${p.hvacApplication || ""}<br>
+  <b>PCM type:</b> ${p.pcmType || ""}<br><br>
+
+  <b>Key findings:</b> ${p.keyFindings || ""}<br><br>
+  <b>Research gaps:</b> ${p.researchGaps || ""}<br><br>
+
+  <b>DOI/URL:</b> <a href="${p.doiOrUrl || "#"}" target="_blank" rel="noopener">Open</a>
+`;
+
       papersDiv.appendChild(div);
     });
 
