@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SBED Lab Research Assistant (Demo)</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial; margin:24px; max-width:900px}
+    .box{border:1px solid #ddd; border-radius:12px; padding:16px; margin-top:12px}
+    input{width:100%; padding:12px; border-radius:10px; border:1px solid #ccc; font-size:16px}
+    button{padding:10px 14px; border-radius:10px; border:0; cursor:pointer; margin-top:10px}
+    .row{display:flex; gap:10px; align-items:center}
+    .row button{white-space:nowrap}
+    ul{margin:8px 0 0 18px}
+    .muted{color:#666; font-size:14px}
+    .card{padding:10px 12px; border:1px solid #eee; border-radius:10px; margin-top:8px}
+    a{word-break:break-word}
+  </style>
+</head>
+<body>
+  <h1>SBED Lab Research Assistant (Demo)</h1>
+  <p class="muted">Step 1: This is a fake/demo version. Next we connect real AI.</p>
+
+  <div class="box">
+    <label><b>Research topic</b></label>
+    <input id="topic" placeholder="Example: AI for HVAC fault detection using BAS data" />
+    <div class="row">
+      <button id="runBtn">Run (Demo)</button>
+      <span id="status" class="muted"></span>
+    </div>
+  </div>
+
+  <div class="box">
+    <h2>Results</h2>
+
+    <h3>Keywords</h3>
+    <ul id="keywords"></ul>
+
+    <h3>Papers</h3>
+    <div id="papers"></div>
+
+    <h3>Datasets</h3>
+    <div id="datasets"></div>
+
+    <h3>Research gaps</h3>
+    <ul id="gaps"></ul>
+  </div>
+
+  <script>
+    const demoData = {
+      keywords: ["BAS data", "fault detection", "AHU", "time series", "classification"],
+      papers: [
+        { title: "Example Paper A", year: 2023, link: "https://example.com/paperA" },
+        { title: "Example Paper B", year: 2021, link: "https://example.com/paperB" }
+      ],
+      datasets: [
+        { title: "Example Dataset 1", source: "Zenodo", link: "https://example.com/dataset1", license: "CC-BY" },
+        { title: "Example Dataset 2", source: "Open data", link: "https://example.com/dataset2", license: "Unknown" }
+      ],
+      gaps: [
+        "Few studies test models across multiple climates/building types.",
+        "Public datasets often lack sensor calibration and ground-truth faults.",
+        "Need standardized evaluation metrics for HVAC FDD."
+      ]
+    };
+
+    function clearUI(){
+      document.getElementById("keywords").innerHTML = "";
+      document.getElementById("papers").innerHTML = "";
+      document.getElementById("datasets").innerHTML = "";
+      document.getElementById("gaps").innerHTML = "";
+    }
+
+    function render(data){
+      const kw = document.getElementById("keywords");
+      data.keywords.forEach(k => {
+        const li = document.createElement("li");
+        li.textContent = k;
+        kw.appendChild(li);
+      });
+
+      const papers = document.getElementById("papers");
+      data.papers.forEach(p => {
+        const div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = `<b>${p.title}</b> (${p.year})<br><a href="${p.link}" target="_blank" rel="noopener">Open</a>`;
+        papers.appendChild(div);
+      });
+
+      const ds = document.getElementById("datasets");
+      data.datasets.forEach(d => {
+        const div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = `<b>${d.title}</b> — ${d.source}<br>
+          License: ${d.license}<br>
+          <a href="${d.link}" target="_blank" rel="noopener">Open</a>`;
+        ds.appendChild(div);
+      });
+
+      const gaps = document.getElementById("gaps");
+      data.gaps.forEach(g => {
+        const li = document.createElement("li");
+        li.textContent = g;
+        gaps.appendChild(li);
+      });
+    }
+
+    document.getElementById("runBtn").addEventListener("click", () => {
+      const topic = document.getElementById("topic").value.trim();
+      document.getElementById("status").textContent = topic ? `Demo run for: "${topic}"` : "Demo run";
+      clearUI();
+      render(demoData);
+    });
+  </script>
+</body>
+</html>
