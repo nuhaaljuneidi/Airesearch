@@ -106,19 +106,94 @@
       });
     }
 
-  document.getElementById("runBtn").addEventListener("click", async () => {
-  const topic = document.getElementById("topic").value.trim();
+ document.getElementById("runBtn").addEventListener("click", async () => {
+  const topic = document.getElementById("topic").value.trim() || "PCM HVAC thermal energy storage";
 
-  document.getElementById("status").textContent = "Contacting research backend...";
+  document.getElementById("status").textContent = "Searching real papers...";
   clearUI();
 
-  const response = await fetch("https://orange-darkness-b69a.nuha-juneidi.workers.dev/", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({ topic })
+  let json;
+  try {
+    const response = await fetch("https://orange-darkness-b69a.nuha-juneidi.workers.dev/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ topic })
+    });
+
+    if (!response.ok) {
+      const txt = await response.text();
+      document.getElementById("status").textContent = "Backend error (Worker not deployed?)";
+      document.getElementById("keywords").innerHTML = `<li>${txt}</li>`;
+      return;
+    }
+
+    json = await response.json();
+  } catch (e) {
+    document.getElementById("status").textContent = "Network error (cannot reach backend)";
+    document.getElementById("keywords").innerHTML = `<li>${String(e)}</li>`;
+    return;
+  }
+
+  // Expecting: { topic: "...", papers: [ ... ] }
+  const papers = Array.isArray(json.papers) ? json.papers : [];
+
+  document.getElementById("status").textContent = `Found ${papers.length} papers. Building Excel...`;
+
+  // Show papers on page
+  const papersDiv = document.getElementById("papers");
+  papersDiv.innerHTML = "";
+
+  papers.forEach((p, i) => {
+    const div = document.createElement("div");
+    div.className = "card";
+    div.innerHTML = `
+      <b>${i + 1}) ${p.title || ""}</b><br>
+      <span class="muted">${p.authors || ""}</span><br>
+      <span class="muted">${p.year || ""} — ${p.venue || ""}</span><br><br>
+      <b>Methodology:</b> ${p.methodology || ""}<br>
+      <b>HVAC application:</b> ${p.hvacApplication || ""}<br>
+      <b>PCM type:</b> ${p.pcmType || ""}<br><br>
+      <b>Key findings:</b> ${p.keyFindings || ""}<br><br>
+      <b>Research gaps:</b> ${p.researchGaps || ""}<br><br>
+      <b>DOI/URL:</b> <a href="${p.doiOrUrl || "#"}" target="_blank" rel="noopener">${p.doiOrUrl || ""}</a>
+    `;
+    papersDiv.appendChild(div);
   });
+
+  // Build Excel
+  const header = [
+    "Title", "Authors", "Year", "Journal/Conference",
+    "Methodology", "HVAC application", "PCM type",
+    "Key findings", "Research gaps", "DOI/URL"
+  ];
+
+  const rows = [header];
+
+  papers.forEach(p => {
+    rows.push([
+      p.title || "",
+      p.authors || "",
+      p.year || "",
+      p.venue || "",
+      p.methodology || "",
+      p.hvacApplication || "",
+      p.pcmType || "",
+      p.keyFindings || "",
+      p.researchGaps || "",
+      p.doiOrUrl || ""
+    ]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Top 5 Papers");
+
+  const safeTopic = (json.topic || topic).toString().replace(/[^\w\-]+/g, "_").slice(0, 50);
+  XLSX.writeFile(wb, `Literature_Summary_${safeTopic}.xlsx`);
+
+  document.getElementById("status").textContent = "Done ✔ Excel downloaded.";
+});
+
 
   const data = await response.json();
 
