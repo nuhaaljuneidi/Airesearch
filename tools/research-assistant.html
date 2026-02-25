@@ -17,6 +17,8 @@
     a{word-break:break-word}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+
 </head>
 <body>
   <h1>SBED Lab Research Assistant (Demo)</h1>
@@ -29,6 +31,12 @@
       <button id="runBtn">Run (Demo)</button>
       <span id="status" class="muted"></span>
     </div>
+    <div style="margin-top:10px;">
+  <label><b>Upload 1 PDF (optional)</b></label><br>
+  <input id="pdfInput" type="file" accept="application/pdf" />
+  <div id="uploadStatus" class="muted" style="margin-top:6px;"></div>
+</div>
+
   </div>
 
   <div class="box">
@@ -56,6 +64,139 @@
     document.getElementById("datasets").innerHTML = "";
     document.getElementById("gaps").innerHTML = "";
   }
+// PDF.js setup
+if (window["pdfjsLib"]) {
+  pdfjsLib.GlobalWorkerOptions.workerSrc =
+    "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
+}
+
+let uploadedPaper = null; // holds 1 uploaded paper (if any)
+
+function extractDOI(text) {
+  if (!text) return "";
+  const m = text.match(/\b10\.\d{4,9}\/[-._;()/:A-Z0-9]+\b/i);
+  return m ? m[0] : "";
+}
+
+async function readPdfText(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+  let fullText = "";
+  const maxPages = Math.min(pdf.numPages, 3);
+
+  for (let pageNum = 1; pageNum <= maxPages; pageNum++) {
+    const page = await pdf.getPage(pageNum);
+    const content = await page.getTextContent();
+    const strings = content.items.map(it => it.str).join(" ");
+    fullText += " " + strings;
+  }
+  return fullText.replace(/\s+/g, " ").trim();
+}
+
+async function fetchOpenAlexByDOI(doi) {
+  const url = "https://api.openalex.org/works/https://doi.org/" + encodeURIComponent(doi);
+  const res = await fetch(url, { headers: { "Accept": "application/json" } });
+  if (!res.ok) return null;
+  return await res.json();
+}
+
+function joinAuthorsFromOpenAlex(authorships) {
+  if (!Array.isArray(authorships)) return "";
+  const names = authorships.map(a => a?.author?.display_name).filter(Boolean);
+  return names.slice(0, 10).join(", ") + (names.length > 10 ? " et al." : "");
+}
+
+// Run when user selects a PDF
+document.getElementById("pdfInput").addEventListener("change", async (e) => {
+  uploadedPaper = null;
+  const st = document.getElementById("uploadStatus");
+  const file = e.target.files && e.target.files[0];
+
+  if (!file) { st.textContent = ""; return; }
+
+  st.textContent = "Reading PDF (first pages)...";
+
+  try {
+    const text = await readPdfText(file);
+    const doi = extractDOI(text);
+
+    if (!doi) {
+      uploadedPaper = {
+        title: file.name,
+        authors: "Uploaded by user (DOI not found)",
+        year: "",
+        venue: "",
+        citedByCount: "",
+        openAccess: "",
+        oaStatus: "",
+        pdfUrl: "",
+        abstract: "",
+        methodology: "",
+        hvacApplication: "",
+        pcmType: "",
+        keyFindings: "",
+        researchGaps: "Needs review (no AI).",
+        doiOrUrl: "Uploaded PDF (local file)"
+      };
+      st.textContent = "Uploaded ✅ (DOI not found — added by file name only)";
+      return;
+    }
+
+    st.textContent = `DOI found ✅ (${doi}). Getting metadata...`;
+
+    const w = await fetchOpenAlexByDOI(doi);
+    if (!w) {
+      uploadedPaper = {
+        title: file.name,
+        authors: "Uploaded by user (OpenAlex lookup failed)",
+        year: "",
+        venue: "",
+        citedByCount: "",
+        openAccess: "",
+        oaStatus: "",
+        pdfUrl: "",
+        abstract: "",
+        methodology: "",
+        hvacApplication: "",
+        pcmType: "",
+        keyFindings: "",
+        researchGaps: "Needs review (no AI).",
+        doiOrUrl: "https://doi.org/" + doi
+      };
+      st.textContent = "Uploaded ✅ (DOI found, but OpenAlex lookup failed)";
+      return;
+    }
+
+    const venue =
+      w?.primary_location?.source?.display_name ||
+      w?.host_venue?.display_name ||
+      "";
+
+    uploadedPaper = {
+      title: w?.display_name || file.name,
+      authors: joinAuthorsFromOpenAlex(w?.authorships),
+      year: w?.publication_year || "",
+      venue: venue,
+      citedByCount: w?.cited_by_count ?? "",
+      openAccess: w?.open_access?.is_oa ?? "",
+      oaStatus: w?.open_access?.oa_status ?? "",
+      pdfUrl: w?.primary_location?.pdf_url || "",
+      abstract: "",
+      methodology: "",
+      hvacApplication: "",
+      pcmType: "",
+      keyFindings: "",
+      researchGaps: "Needs review (no AI).",
+      doiOrUrl: "https://doi.org/" + doi
+    };
+
+    st.textContent = "Uploaded ✅ (Metadata added from DOI)";
+  } catch (err) {
+    uploadedPaper = null;
+    st.textContent = "Upload failed: " + String(err);
+  }
+});
 
   async function runSearch() {
     const topic = document.getElementById("topic").value.trim() || "PCM HVAC thermal energy storage";
@@ -85,6 +226,7 @@
     }
 
     const papers = Array.isArray(json.papers) ? json.papers : [];
+if (uploadedPaper) papers.push(uploadedPaper);
 
     // Show papers on the page
     const papersDiv = document.getElementById("papers");
